@@ -11,7 +11,15 @@ export default function PlayerTabScreen() {
     showPauseOverlay,
     isPlaying,
     progress,
-    setIsPlaying,
+    playbackDurationMillis,
+    currentSong,
+    isLoadingTrack,
+    playbackError,
+    togglePlayback,
+    playNext,
+    playPrevious,
+    seekBy,
+    seekTo,
   } = useSimulation();
 
   return (
@@ -21,7 +29,16 @@ export default function PlayerTabScreen() {
         showPauseOverlay={showPauseOverlay}
         isPlaying={isPlaying}
         progress={progress}
-        onTogglePlay={() => setIsPlaying((prev) => !prev)}
+        playbackDurationMillis={playbackDurationMillis}
+        currentSong={currentSong}
+        isLoadingTrack={isLoadingTrack}
+        playbackError={playbackError}
+        onTogglePlay={togglePlayback}
+        onNext={playNext}
+        onPrevious={playPrevious}
+        onSeekForward={() => void seekBy(15000)}
+        onSeekBackward={() => void seekBy(-15000)}
+        onSeekTo={(millis) => void seekTo(millis)}
       />
     </AppFrame>
   );
