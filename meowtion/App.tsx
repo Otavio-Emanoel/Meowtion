@@ -1,92 +1,170 @@
-// App.tsx
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, TouchableOpacity, SafeAreaView, StatusBar } from 'react-native';
+import { SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+
+import { BottomNav } from './src/components/BottomNav';
+import { GlassSurface } from './src/components/GlassSurface';
+import { DashboardScreen } from './src/screens/DashboardScreen';
+import { LibraryScreen } from './src/screens/LibraryScreen';
+import { NowPlayingScreen } from './src/screens/NowPlayingScreen';
+import { COLORS } from './src/theme/colors';
+import { LibraryTab, MainTab } from './src/types/ui';
 
 export default function App() {
-  const [serverStatus, setServerStatus] = useState<string>('Conectando...');
-
-  const fetchStatus = async () => {
-    try {
-      // Lembre-se de trocar "localhost" pelo IP da sua máquina se estiver usando um dispositivo físico
-      const response = await fetch('http://192.168.3.138:3000/api/status'); 
-      const data = await response.json();
-      setServerStatus(`Servidor: ${data.status}`);
-    } catch (error) {
-      setServerStatus('Erro de conexão');
-    }
-  };
+  const [activeTab, setActiveTab] = useState<MainTab>('dashboard');
+  const [libraryTab, setLibraryTab] = useState<LibraryTab>('Musicas');
+  const [micActive, setMicActive] = useState(false);
+  const [handDetected, setHandDetected] = useState(false);
+  const [showPauseOverlay, setShowPauseOverlay] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [progress, setProgress] = useState(38);
 
   useEffect(() => {
-    fetchStatus();
+    const micTimer = setInterval(() => {
+      setMicActive((prev) => !prev);
+    }, 3200);
+
+    return () => clearInterval(micTimer);
   }, []);
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4A5568" />
-      
-      <View style={styles.content}>
-        <Text style={styles.title}>Meu App Fullstack</Text>
-        
-        <View style={styles.card}>
-          <Text style={styles.cardText}>Status: {serverStatus}</Text>
-        </View>
+  useEffect(() => {
+    const handTimer = setInterval(() => {
+      setHandDetected((prev) => {
+        const next = !prev;
+        if (next && activeTab === 'player') {
+          setShowPauseOverlay(true);
+          setIsPlaying(false);
+          setTimeout(() => setShowPauseOverlay(false), 900);
+        }
+        return next;
+      });
+    }, 4500);
 
-        <TouchableOpacity style={styles.button} onPress={fetchStatus}>
-          <Text style={styles.buttonText}>Atualizar Status</Text>
-        </TouchableOpacity>
-      </View>
-    </SafeAreaView>
+    return () => clearInterval(handTimer);
+  }, [activeTab]);
+
+  useEffect(() => {
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => {
+        if (!isPlaying) {
+          return prev;
+        }
+        const next = prev + 1;
+        return next > 100 ? 0 : next;
+      });
+    }, 900);
+
+    return () => clearInterval(progressTimer);
+  }, [isPlaying]);
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" backgroundColor="transparent" translucent />
+      <LinearGradient
+        colors={[COLORS.backgroundTop, COLORS.background, COLORS.backgroundBottom]}
+        start={{ x: 0.12, y: 0 }}
+        end={{ x: 0.9, y: 1 }}
+        style={styles.gradientBg}
+      />
+
+      <SafeAreaView style={styles.container}>
+        <GlassSurface style={styles.headerShell} intensity={42}>
+          <View style={styles.headerRow}>
+            <View>
+              <Text style={styles.headerTitle}>Meowtion</Text>
+              <Text style={styles.headerSubtitle}>Controle por voz e gestos em tempo real</Text>
+            </View>
+            <View style={styles.liveDotWrap}>
+              <View style={[styles.liveDot, micActive && styles.liveDotActive]} />
+              <Text style={styles.liveDotText}>{micActive ? 'Mic ativo' : 'Mic inativo'}</Text>
+            </View>
+          </View>
+        </GlassSurface>
+
+        {activeTab === 'dashboard' && <DashboardScreen micActive={micActive} />}
+
+        {activeTab === 'player' && (
+          <NowPlayingScreen
+            handDetected={handDetected}
+            showPauseOverlay={showPauseOverlay}
+            isPlaying={isPlaying}
+            progress={progress}
+            onTogglePlay={() => setIsPlaying((prev) => !prev)}
+          />
+        )}
+
+        {activeTab === 'library' && (
+          <LibraryScreen
+            libraryTab={libraryTab}
+            onChangeLibraryTab={setLibraryTab}
+          />
+        )}
+
+        <BottomNav activeTab={activeTab} onChangeTab={setActiveTab} />
+      </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+  },
+  gradientBg: {
+    ...StyleSheet.absoluteFillObject,
+  },
   container: {
     flex: 1,
-    backgroundColor: '#4A5568', // Cor de fundo
+    backgroundColor: 'transparent',
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  headerShell: {
+    marginHorizontal: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+    marginTop: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.borderSoft,
+    backgroundColor: COLORS.surface,
+  },
+  headerRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
+    justifyContent: 'space-between',
   },
-  title: {
+  headerTitle: {
+    color: COLORS.textPrimary,
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 40,
+    fontWeight: '800',
+    letterSpacing: 0.8,
   },
-  card: {
-    backgroundColor: '#374151', // Um tom um pouco mais escuro para dar profundidade
-    padding: 20,
-    borderRadius: 12,
-    width: '100%',
+  headerSubtitle: {
+    color: COLORS.textMuted,
+    marginTop: 4,
+    fontSize: 12,
+  },
+  liveDotWrap: {
     alignItems: 'center',
-    marginBottom: 30,
-    borderLeftWidth: 4,
-    borderLeftColor: '#F7FF00', // Destaque lateral
+    gap: 6,
   },
-  cardText: {
-    color: '#E2E8F0',
-    fontSize: 18,
+  liveDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: '#7B8798',
   },
-  button: {
-    backgroundColor: '#F7FF00', // Botão de destaque
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    width: '100%',
-    alignItems: 'center',
-    shadowColor: '#F7FF00',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
+  liveDotActive: {
+    backgroundColor: COLORS.highlight,
+    shadowColor: COLORS.highlight,
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
     elevation: 6,
   },
-  buttonText: {
-    color: '#4A5568', // Texto escuro no botão amarelo para contraste máximo
-    fontSize: 16,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+  liveDotText: {
+    color: COLORS.textSecondary,
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
