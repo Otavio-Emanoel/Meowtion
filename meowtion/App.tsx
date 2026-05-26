@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
@@ -7,55 +7,31 @@ import { GlassSurface } from './src/components/GlassSurface';
 import { DashboardScreen } from './src/screens/DashboardScreen';
 import { LibraryScreen } from './src/screens/LibraryScreen';
 import { NowPlayingScreen } from './src/screens/NowPlayingScreen';
+import { SimulationProvider, useSimulation } from './src/state/SimulationProvider';
 import { COLORS } from './src/theme/colors';
 import { LibraryTab, MainTab } from './src/types/ui';
 
-export default function App() {
+function LegacyAppContent() {
+  const {
+    micActive,
+    handDetected,
+    showPauseOverlay,
+    isPlaying,
+    progress,
+    playbackDurationMillis,
+    currentSong,
+    isLoadingTrack,
+    playbackError,
+    togglePlayback,
+    playNext,
+    playPrevious,
+    seekBy,
+    seekTo,
+    playSong,
+  } = useSimulation();
+
   const [activeTab, setActiveTab] = useState<MainTab>('dashboard');
   const [libraryTab, setLibraryTab] = useState<LibraryTab>('Musicas');
-  const [micActive, setMicActive] = useState(false);
-  const [handDetected, setHandDetected] = useState(false);
-  const [showPauseOverlay, setShowPauseOverlay] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(true);
-  const [progress, setProgress] = useState(38);
-
-  useEffect(() => {
-    const micTimer = setInterval(() => {
-      setMicActive((prev) => !prev);
-    }, 3200);
-
-    return () => clearInterval(micTimer);
-  }, []);
-
-  useEffect(() => {
-    const handTimer = setInterval(() => {
-      setHandDetected((prev) => {
-        const next = !prev;
-        if (next && activeTab === 'player') {
-          setShowPauseOverlay(true);
-          setIsPlaying(false);
-          setTimeout(() => setShowPauseOverlay(false), 900);
-        }
-        return next;
-      });
-    }, 4500);
-
-    return () => clearInterval(handTimer);
-  }, [activeTab]);
-
-  useEffect(() => {
-    const progressTimer = setInterval(() => {
-      setProgress((prev) => {
-        if (!isPlaying) {
-          return prev;
-        }
-        const next = prev + 1;
-        return next > 100 ? 0 : next;
-      });
-    }, 900);
-
-    return () => clearInterval(progressTimer);
-  }, [isPlaying]);
 
   return (
     <View style={styles.root}>
@@ -89,7 +65,16 @@ export default function App() {
             showPauseOverlay={showPauseOverlay}
             isPlaying={isPlaying}
             progress={progress}
-            onTogglePlay={() => setIsPlaying((prev) => !prev)}
+            playbackDurationMillis={playbackDurationMillis}
+            currentSong={currentSong}
+            isLoadingTrack={isLoadingTrack}
+            playbackError={playbackError}
+            onTogglePlay={togglePlayback}
+            onNext={playNext}
+            onPrevious={playPrevious}
+            onSeekForward={() => void seekBy(15000)}
+            onSeekBackward={() => void seekBy(-15000)}
+            onSeekTo={(millis) => void seekTo(millis)}
           />
         )}
 
@@ -97,6 +82,10 @@ export default function App() {
           <LibraryScreen
             libraryTab={libraryTab}
             onChangeLibraryTab={setLibraryTab}
+            onSelectSong={async (song, queue, index) => {
+              await playSong(song, queue, index);
+              setActiveTab('player');
+            }}
           />
         )}
 
@@ -168,3 +157,11 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 });
+
+export default function App() {
+  return (
+    <SimulationProvider>
+      <LegacyAppContent />
+    </SimulationProvider>
+  );
+}
